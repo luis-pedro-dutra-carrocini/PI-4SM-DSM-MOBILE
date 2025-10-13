@@ -200,7 +200,6 @@ export default function BackpackScreen({ navigation }) {
     fetchUserBackpacks();
   }, [fetchUserBackpacks]);
 
-  // ✅ Atualizado para usar a Camera (não mais BarCodeScanner)
   useEffect(() => {
     (async () => {
       const { status } = await Camera.requestCameraPermissionsAsync();
