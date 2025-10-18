@@ -1,9 +1,7 @@
 import React, { useEffect, useContext } from "react";
 import { View, Text, StyleSheet, Image, ActivityIndicator, ToastAndroid, BackHandler, Alert } from "react-native";
-import { delay } from "../utils/validacoes";
-//import { LINKAPI, PORTAPI } from "@env";
 import { LINKAPI, PORTAPI } from "../utils/global";
-import { pegarTokens, salvarTokens, limparTokens, validarTokens } from "../utils/validacoes";
+import { pegarTokens, salvarTokens, limparTokens, validarTokens, delay } from "../utils/validacoes";
 
 export default function MainScreen({ navigation }) {
 
