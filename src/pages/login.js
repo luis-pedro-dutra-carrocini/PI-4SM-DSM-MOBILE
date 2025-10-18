@@ -2,7 +2,7 @@ import React, { useState, useContext } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ToastAndroid } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 //import { LINKAPI, PORTAPI } from "@env";
-import { LINKAPI, PORTAPI } from "../utils/global";
+import { LINKAPI, PORTAPI } from "../utils/global.js";
 import { validarEmail, salvarTokens } from "../utils/validacoes";
 
 export default function LoginScreen({ navigation }) {
