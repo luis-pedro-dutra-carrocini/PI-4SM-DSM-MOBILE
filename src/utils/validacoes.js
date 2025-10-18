@@ -112,7 +112,6 @@ export async function validarTokens(tentativas, navigation) {
     console.log('Tentativas: ' + tentativas);
     if (tentativas > 5) {
       console.log('Tentativas excedidas');
-      await limparTokens();
       navigation.reset({
         index: 0,
         routes: [{ name: "login" }],
@@ -155,7 +154,7 @@ export async function validarTokens(tentativas, navigation) {
       response = await fetch(LINKAPI + PORTAPI + "/token/refresh", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: "Bearer " + refreshToken }),
+        body: JSON.stringify({ token: refreshToken }),
         signal: controller.signal,
       });
 

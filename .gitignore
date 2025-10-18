@@ -4,6 +4,7 @@
 node_modules/
 
 .env
+/src/utils/global.js
 
 # Expo
 .expo/

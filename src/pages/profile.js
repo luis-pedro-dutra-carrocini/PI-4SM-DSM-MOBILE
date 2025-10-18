@@ -1,32 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 
-import {
-    View,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    StyleSheet,
-    Platform,
-    ToastAndroid,
-    Keyboard,
-    KeyboardAvoidingView,
-    Modal, // Importação do Modal
-} from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Platform, ToastAndroid, Keyboard, KeyboardAvoidingView, Modal } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Picker } from "@react-native-picker/picker";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 
-import {
-    validarEmail,
-    validarSenha,
-    diferencaEntreDatas,
-    delay,
-    pegarTokens,
-    salvarTokens,
-    limparTokens,
-    obterDadosUsuario,
-} from "../utils/validacoes";
+import { validarEmail, validarSenha, diferencaEntreDatas, delay, pegarTokens, salvarTokens, limparTokens, obterDadosUsuario } from "../utils/validacoes";
 
 import BottomNav from "../components/BottomNav";
 import SettingsModal from "../components/SettingsModal";
@@ -34,16 +14,12 @@ import { LINKAPI, PORTAPI } from "../utils/global";
 
 export default function ProfileScreen({ navigation }) {
     const senhaAlteracaoRef = useRef(null);
-    // Ref para o input de senha dentro do Modal
-    const senhaExclusaoRef = useRef(null);
 
     const [settingsVisible, setSettingsVisible] = useState(false);
     const [darkTheme, setDarkTheme] = useState(false);
 
     // NOVO STATE PARA O MODAL DE EXCLUSÃO
     const [deleteModalVisible, setDeleteModalVisible] = useState(false);
-    // NOVO STATE PARA A SENHA DENTRO DO MODAL
-    const [senhaExclusao, setSenhaExclusao] = useState("");
 
     const [email, setEmail] = useState("");
     const [senha, setSenha] = useState(""); // Senha para alteração (opcional)
@@ -159,62 +135,6 @@ export default function ProfileScreen({ navigation }) {
             } else {
                 ToastAndroid.show("Erro ao conectar no servidor", ToastAndroid.SHORT);
             }
-        }
-    };
-
-    // FUNÇÃO DE EXCLUSÃO FINAL, CHAMADA PELO MODAL
-    const handleExcluirContaFinal = async () => {
-        // A senha para exclusão virá do state do modal
-        if (!senhaExclusao || senhaExclusao.trim() === "") {
-            ToastAndroid.show(
-                "Para exclusão informe a senha atual",
-                ToastAndroid.SHORT
-            );
-            if (senhaExclusaoRef.current) senhaExclusaoRef.current.focus();
-            return;
-        }
-
-        setDeleteModalVisible(false); // Fecha o modal antes de chamar a API
-
-        try {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 3000);
-
-            let tokens = await pegarTokens();
-            let { accessToken } = tokens;
-
-            const response = await fetch(LINKAPI + PORTAPI + "/usuarios", {
-                method: "DELETE",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${accessToken}`,
-                },
-                // USA A SENHA CAPTURADA NO MODAL
-                body: JSON.stringify({ UsuarioSenha: senhaExclusao }),
-                signal: controller.signal,
-            });
-
-            clearTimeout(timeout);
-            setSenhaExclusao(""); // Limpa a senha após a tentativa
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                ToastAndroid.show(
-                    errorData.error || "Erro ao excluir conta",
-                    ToastAndroid.SHORT
-                );
-                return;
-            }
-
-            await limparTokens();
-            navigation.reset({
-                index: 0,
-                routes: [{ name: "login" }],
-            });
-            ToastAndroid.show("Conta excluída com sucesso!", ToastAndroid.SHORT);
-        } catch (error) {
-            setDeleteModalVisible(true);
-            ToastAndroid.show("Erro ao conectar no servidor", ToastAndroid.SHORT);
         }
     };
 

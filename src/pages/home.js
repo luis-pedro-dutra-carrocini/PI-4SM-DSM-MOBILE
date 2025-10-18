@@ -8,7 +8,8 @@ import SettingsModal from "../components/SettingsModal";
 
 import { pegarTokens, salvarTokens, limparTokens, roundTo2, delay, obterDadosUsuario } from "../utils/validacoes";
 import { LINKAPI, PORTAPI } from "../utils/global";
-import { isExists } from "date-fns";
+import { solicitarPermissaoNotificacao, enviarNotificacao } from "../utils/notificacoes";
+
 
 export default function HomeScreen({ navigation }) {
 
@@ -35,6 +36,25 @@ export default function HomeScreen({ navigation }) {
   const [temMochila, setTemMochila] = useState(true);
   const [mostrarTela, setMostrarTela] = useState(false);
   const [corTextoCirculo, setCorTextoCirculo] = useState('');
+
+  useEffect(() => {
+    solicitarPermissaoNotificacao();
+  }, []);
+
+  const [notificacaoEnviada, setNotificacaoEnviada] = useState(false);
+
+  useEffect(() => {
+    if (Number(pesoTotal) > Number(pesoMaximo) && !notificacaoEnviada) {
+      enviarNotificacao(
+        "Atenção!",
+        "O peso carregado excede o limite permitido da sua mochila!"
+      );
+      setNotificacaoEnviada(true);
+    } else if (Number(pesoTotal) <= Number(pesoMaximo) && notificacaoEnviada) {
+      setNotificacaoEnviada(false); // reseta quando voltar ao normal
+    }
+  }, [pesoTotal, pesoMaximo]);
+
 
   const TEMPO_ATUALIZACAO_MS = 20000;
   useEffect(() => {
@@ -245,7 +265,7 @@ export default function HomeScreen({ navigation }) {
           setPesoDireito(0);
           setPercDireito(0);
           return;
-        }else{
+        } else {
           setPesoTotal(roundTo2(Number(dataMedicao.esquerda.MedicaoPeso) + Number(dataMedicao.direita.MedicaoPeso)));
           pesoTotalConta = roundTo2(Number(dataMedicao.esquerda.MedicaoPeso) + Number(dataMedicao.direita.MedicaoPeso));
         }
@@ -268,9 +288,9 @@ export default function HomeScreen({ navigation }) {
           setPercDireito(0);
         }
 
-        if (((Number(pesoTotalConta) / Number(pesoMaximo)) * 100) > 50){
+        if (((Number(pesoTotalConta) / Number(pesoMaximo)) * 100) > 50) {
           setCorTextoCirculo('#bd1c11ff');
-        }else{
+        } else {
           setCorTextoCirculo('#338136ff');
         }
 

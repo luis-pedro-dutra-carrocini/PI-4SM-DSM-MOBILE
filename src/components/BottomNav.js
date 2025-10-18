@@ -21,7 +21,7 @@ export default function BottomNav({ navigation, onOpenSettings  }) {
         <Ionicons name="home" size={28} color="black" />
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => navigation.navigate("estatisticas")}>
+      <TouchableOpacity onPress={() => navigation.navigate("reports")}>
         <Ionicons name="stats-chart" size={28} color="black" />
       </TouchableOpacity>
 

@@ -216,17 +216,7 @@ export default function BackpackScreen({ navigation }) {
     if (!date) return "N/A";
     return format(date, "dd/MM/yyyy HH:mm", { locale: ptBR });
   };
-
-  const handleBarCodeScanned = ({ data }) => {
-    setScanned(true);
-    setNewBackpackCode(data);
-    setScanning(false);
-    ToastAndroid.show(`Código lido: ${data}`, ToastAndroid.SHORT);
-  };
-
-  // (restante do código permanece igual até o Modal)
-
-
+  
   // Função para iniciar o uso de uma mochila
   const handleStartUsing = async (backpackCode) => {
     try {
@@ -400,16 +390,6 @@ export default function BackpackScreen({ navigation }) {
             value={newBackpackCode}
             onChangeText={setNewBackpackCode}
           />
-
-          {/*}
-          <TouchableOpacity
-            style={[styles.addButton, { backgroundColor: "#007bff", marginBottom: 10 }]}
-            onPress={() => setScanning(true)}
-          >
-            <Ionicons name="camera-outline" size={20} color="#fff" />
-            <Text style={[styles.addButtonText, { color: "#fff" }]}>ESCANEAR QR CODE</Text>
-          </TouchableOpacity>
-          {*/}
 
           <TouchableOpacity style={styles.addButton} onPress={handleAddBackpack}>
             <Text style={styles.addButtonText}>CADASTRAR</Text>
