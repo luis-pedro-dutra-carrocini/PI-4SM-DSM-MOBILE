@@ -4,7 +4,7 @@
     "slug": "mochila-inteligente",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./src/assets/mochila-PI-sem-fundo.png",
+    "icon": ".assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -27,8 +27,15 @@
       "edgeToEdgeEnabled": true,
       "package": "com.luispedrocarrocini.mochilainteligente",
       "permissions": [
-        "CAMERA"
-      ]
+        "RECEIVE_BOOT_COMPLETED",
+        "FOREGROUND_SERVICE",
+        "WAKE_LOCK",
+        "POST_NOTIFICATIONS"
+      ],
+      "foregroundService": {
+        "notificationTitle": "Monitoramento em andamento",
+        "notificationBody": "O app está executando tarefas em segundo plano."
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -39,7 +46,11 @@
       }
     },
     "plugins": [
-      "expo-font"
-    ]
+      "expo-font",
+      "expo-background-task"
+    ],
+    "cli": {
+      "appVersionSource": "remote"
+    }
   }
 }

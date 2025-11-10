@@ -1,2 +1,2 @@
-export const LINKAPI= 'http://192.168.100.249:'; //'http://192.168.50.126:' //(Casa) //'http://192.168.253.126:' //(Fatec) // 'http://192.168.50.126:' //(Movel)
+export const LINKAPI= 'http://192.168.100.249:'; //192.168.118.126 //172.203.17.144 //192.168.100.249
 export const PORTAPI= '3001';

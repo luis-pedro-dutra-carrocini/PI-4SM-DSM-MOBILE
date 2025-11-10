@@ -1,11 +1,9 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ToastAndroid, ScrollView, RefreshControl, ActivityIndicator, Alert, Modal, Platform } from "react-native";
+// backpack.js
+import React, { useState, useEffect, useCallback } from "react";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ToastAndroid, ScrollView, RefreshControl, ActivityIndicator, Alert, Modal } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-
-import * as CameraModule from "expo-camera";
-const Camera = CameraModule.Camera; // <--- GARANTA QUE O COMPONENTE SEJA UM OBJETO DE COMPONENTE VÁLIDO
 
 import { LINKAPI, PORTAPI } from "../utils/global";
 import { validarTokens, pegarTokens } from "../utils/validacoes";
@@ -14,10 +12,6 @@ import BottomNav from "../components/BottomNav";
 import SettingsModal from "../components/SettingsModal";
 
 export default function BackpackScreen({ navigation }) {
-  const [hasPermission, setHasPermission] = useState(null);
-  const [scanning, setScanning] = useState(false);
-  const [scanned, setScanned] = useState(false);
-  const cameraRef = useRef(null);
 
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedBackpack, setSelectedBackpack] = useState(null);
@@ -200,13 +194,6 @@ export default function BackpackScreen({ navigation }) {
     fetchUserBackpacks();
   }, [fetchUserBackpacks]);
 
-  useEffect(() => {
-    (async () => {
-      const { status } = await Camera.requestCameraPermissionsAsync();
-      setHasPermission(status === "granted");
-    })();
-  }, []);
-
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchUserBackpacks();
@@ -368,7 +355,7 @@ export default function BackpackScreen({ navigation }) {
         <Ionicons
           name={showAddForm ? "chevron-up" : "chevron-down"}
           size={20}
-          color="#007bff"
+          color="#28a745"
         />
         <Text style={styles.toggleButtonText}>
           {showAddForm ? "Fechar Cadastro de Mochila" : "Cadastrar Nova Mochila"}
@@ -519,7 +506,7 @@ export default function BackpackScreen({ navigation }) {
                 <Text style={styles.modalButtonText}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: "#007bff" }]}
+                style={[styles.modalButton, { backgroundColor: "#28a745" }]}
                 onPress={handleConfirmEdit}
               >
                 <Text style={styles.modalButtonText}>Salvar</Text>
@@ -541,7 +528,7 @@ export default function BackpackScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#e0f7fa",
+    backgroundColor: "#eee",
     paddingTop: 50,
   },
   loadingContainer: {
@@ -642,7 +629,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   startUsingButton: {
-    backgroundColor: "#007bff", 
+    backgroundColor: "#28a745", 
   },
   stopUsingButton: {
     backgroundColor: "#dc3545", 
@@ -724,10 +711,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: "#007bff",
+    borderColor: "#228b3bff",
   },
   toggleButtonText: {
-    color: "#007bff",
+    color: "#228b3bff",
     fontWeight: "bold",
     fontSize: 16,
     marginLeft: 8,

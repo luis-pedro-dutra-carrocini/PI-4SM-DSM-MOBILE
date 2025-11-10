@@ -1,3 +1,5 @@
+// home.js
+
 import React, { use, useEffect, useState } from "react";
 import { View, Text, StyleSheet, Image, ScrollView, BackHandler, ToastAndroid, Alert, ActivityIndicator } from "react-native";
 
@@ -37,10 +39,13 @@ export default function HomeScreen({ navigation }) {
   const [mostrarTela, setMostrarTela] = useState(false);
   const [corTextoCirculo, setCorTextoCirculo] = useState('');
 
+  /*
   useEffect(() => {
     solicitarPermissaoNotificacao();
   }, []);
+  */
 
+  /*
   const [notificacaoEnviada, setNotificacaoEnviada] = useState(false);
 
   useEffect(() => {
@@ -54,7 +59,7 @@ export default function HomeScreen({ navigation }) {
       setNotificacaoEnviada(false); // reseta quando voltar ao normal
     }
   }, [pesoTotal, pesoMaximo]);
-
+  */
 
   const TEMPO_ATUALIZACAO_MS = 20000;
   useEffect(() => {
@@ -332,7 +337,7 @@ export default function HomeScreen({ navigation }) {
         {/* Parte de cima com imagem */}
         <View style={styles.topContainer}>
           <Text style={{ color: "#000", fontWeight: "600", fontSize: 18, marginBottom: 30, textAlign: "center" }}>
-            Olá, {nomePessoa}! {"\n"}Peso em Tempo Real
+            Olá, {nomePessoa}! {"\n"}Veja seu Peso em Tempo Real
           </Text>
           <Image
             source={imagensMochilas[pessoa]}
@@ -364,6 +369,10 @@ export default function HomeScreen({ navigation }) {
               }}
             />
 
+            <Text style={{ color: "#00000", fontWeight: "600", fontSize: 13, marginTop: 5 }}>
+              Peso máximo permitido: {Number(roundTo2(pesoMaximo))} Kg
+            </Text>
+
             {/* Barra personalizada para comparação */}
             <View style={styles.barraContainer}>
               <View style={[styles.barraEsquerda, { flex: percEsquerdo }]} />
@@ -373,10 +382,10 @@ export default function HomeScreen({ navigation }) {
             {/* Labels */}
             <View style={styles.labels}>
               <Text style={{ color: "#F46334", fontWeight: "600" }}>
-                Esquerdo: {Math.round(Number(percEsquerdo) * 100)}% ({Number(pesoEsquerdo)} Kg)
+                Esq.: {Math.round(Number(percEsquerdo) * 100)}% ({Number(pesoEsquerdo)} Kg)
               </Text>
               <Text style={{ color: "#36985B", fontWeight: "600" }}>
-                Direito: {Math.round(Number(percDireito) * 100)}% ({Number(pesoDireito)} Kg)
+                Dir.: {Math.round(Number(percDireito) * 100)}% ({Number(pesoDireito)} Kg)
               </Text>
             </View>
 
@@ -446,7 +455,7 @@ const styles = StyleSheet.create({
   container: {
     paddingTop: 50,
     flex: 1,
-    backgroundColor: "#e0f7fa",
+    backgroundColor: "#eee",
   },
   scrollContainer: {
     alignItems: "center",
@@ -480,7 +489,7 @@ const styles = StyleSheet.create({
     borderColor: "#333",
     borderRadius: 6,
     overflow: "hidden",
-    marginTop: 20,
+    marginTop: 5,
   },
   barraEsquerda: {
     backgroundColor: "#F46334",

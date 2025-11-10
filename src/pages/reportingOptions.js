@@ -1,3 +1,5 @@
+// reportingOptions.js
+
 import React, { useState } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -16,6 +18,7 @@ export default function ReportingOptionsScreen({ navigation, route }) {
     { titulo: "☀️ Semanal", rota: "weeklyReport" },
     { titulo: "📈 Mensal", rota: "monthlyReport" },
     { titulo: "📆 Anual", rota: "annualReport" },
+    { titulo: "↪️ Previsão Futura", rota: "futurePrediction" },
   ];
 
   const handleNavegar = (rota) => {
@@ -81,7 +84,7 @@ export default function ReportingOptionsScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#e0f7fa",
+    backgroundColor: "#eee",
     paddingTop: 50,
   },
   title: {

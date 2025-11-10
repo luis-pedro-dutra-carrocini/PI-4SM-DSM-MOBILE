@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ToastAndroid,
+  Animated,
+  Easing,
 } from "react-native";
 import { LineChart } from "react-native-chart-kit";
 import { Dimensions } from "react-native";
@@ -20,12 +22,15 @@ import {
   validarTokens,
   pegarTokens,
   obterDadosUsuario,
+  roundTo2,
 } from "../utils/validacoes";
 
 import BottomNav from "../components/BottomNav";
 import SettingsModal from "../components/SettingsModal";
 
 const screenWidth = Dimensions.get("window").width;
+
+// --- Componente Principal ---
 
 export default function MonthlyReportScreen({ navigation, route }) {
   const { codigo, nome } = route.params;
@@ -35,8 +40,32 @@ export default function MonthlyReportScreen({ navigation, route }) {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
+  // isProcessing foi removido pois o processamento é feito na API
   const [erro, setErro] = useState("");
-  const [medicoes, setMedicoes] = useState([]);
+
+  // Estado para armazenar o objeto de estatísticas calculado pela API
+  const [estatisticas, setEstatisticas] = useState(null);
+
+  // Estado para armazenar o objeto de dados processados calculado pela API
+  const [dadosProcessados, setDadosProcessados] = useState({
+    dailyAvgs: [],
+    dailyLabels: [], // Adicionado para rótulos de dias
+    dailyAvgsEsq: [], // Adicionado para gráfico comparativo
+    dailyAvgsDir: [], // Adicionado para gráfico comparativo
+    maiorEsq: null,
+    maiorDir: null,
+    menorEsq: null,
+    menorDir: null,
+    totalMedicoes: 0,
+    mediçõesAcimaLimite: 0,
+    diasComMedicao: 0,
+    pesoMaximoPermitido: 0,
+  });
+
+  const [statsExpanded, setStatsExpanded] = useState(true);
+  const animVal = useRef(new Animated.Value(1)).current;
+
+  // Dados do usuário são apenas auxiliares para o front-end exibir o limite
   const [pesoUsuario, setPesoUsuario] = useState(0);
   const [porcentagemMaxima, setPorcentagemMaxima] = useState(10);
 
@@ -58,9 +87,6 @@ export default function MonthlyReportScreen({ navigation, route }) {
     }
   };
 
-  // Peso máximo de UM lado
-  const pesoMaximoPermitido = (pesoUsuario * (porcentagemMaxima / 100)) / 2;
-
   useEffect(() => {
     buscarRelatorioMensal();
   }, [selectedDate]);
@@ -70,11 +96,22 @@ export default function MonthlyReportScreen({ navigation, route }) {
     if (date) setSelectedDate(date);
   };
 
+  // A função processarMedicoes e suas auxiliares foram REMOVIDAS daqui
+  // e movidas para a API.
+
   const buscarRelatorioMensal = async () => {
     try {
       setLoading(true);
       setErro("");
-      setMedicoes([]);
+
+      // Limpa os estados antes de buscar
+      setEstatisticas(null);
+      setDadosProcessados({
+        dailyAvgs: [], dailyLabels: [], dailyAvgsEsq: [], dailyAvgsDir: [],
+        maiorEsq: null, maiorDir: null, menorEsq: null, menorDir: null,
+        totalMedicoes: 0, mediçõesAcimaLimite: 0, diasComMedicao: 0,
+        pesoMaximoPermitido: 0,
+      });
 
       const resposta = await validarTokens(0, navigation);
       if (resposta !== "true")
@@ -103,8 +140,15 @@ export default function MonthlyReportScreen({ navigation, route }) {
         return;
       }
 
-      const dados = await response.json();
-      setMedicoes(dados || []);
+      // Recebe o objeto JÁ PROCESSADO da API
+      const resultado = await response.json();
+
+      // Atualiza os estados diretamente com os dados calculados
+      setEstatisticas(resultado.estatisticas);
+      setDadosProcessados(resultado.dadosProcessados);
+
+      // Remove a chamada de processamento local
+
     } catch (e) {
       console.error(e);
       setErro("Erro ao conectar ao servidor.");
@@ -113,102 +157,140 @@ export default function MonthlyReportScreen({ navigation, route }) {
     }
   };
 
-  const localSide = (local) => {
-    if (!local) return "outro";
-    const l = local.toString().toLowerCase();
-    if (l.includes("esquer")) return "esquerda";
-    if (l.includes("direit")) return "direita";
-    if (l.includes("amb")) return "ambos";
-    return "outro";
+
+  const {
+    dailyAvgs,
+    dailyLabels, // Novo campo da API
+    dailyAvgsEsq, // Novo campo da API
+    dailyAvgsDir, // Novo campo da API
+    maiorEsq,
+    maiorDir,
+    menorEsq,
+    menorDir,
+    totalMedicoes,
+    mediçõesAcimaLimite,
+    diasComMedicao,
+    pesoMaximoPermitido,
+  } = dadosProcessados;
+
+  // O chartData não é mais criado aqui. Ele é construído diretamente no LineChart
+  // usando os dados prontos da API: dailyAvgs e dailyLabels.
+
+  // dailyAvgsEsq e dailyAvgsDir agora vêm prontos da API:
+  // const dailyAvgsEsq = dadosProcessados.dailyAvgsEsq;
+  // const dailyAvgsDir = dadosProcessados.dailyAvgsDir;
+
+  const toggleStats = () => {
+    const toValue = statsExpanded ? 0 : 1;
+    Animated.timing(animVal, {
+      toValue,
+      duration: 300,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+    setStatsExpanded(!statsExpanded);
   };
 
-  // Agrupar medições por dia
-  const groupByDay = () => {
-    const map = {};
-    medicoes.forEach((m) => {
-      const date = parseISO(m.MedicaoData);
-      const key = format(date, "yyyy-MM-dd");
-      if (!map[key]) map[key] = [];
-      map[key].push(m);
-    });
-    return map;
+  const animatedHeight = animVal.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 140],
+  });
+  const animatedOpacity = animVal;
+
+  const renderStatCard = (titulo, valor, cor, emoji, footer = null) => {
+    return (
+      <View style={[styles.statCard, { borderLeftColor: cor }]}>
+        <Text style={styles.statCardTitle}>
+          {emoji} {titulo}
+        </Text>
+        <Text style={styles.statCardValue}>{valor}</Text>
+        {footer && <Text style={styles.statCardFooter}>{footer}</Text>}
+      </View>
+    );
   };
 
-  const processarMedicoes = () => {
-    const grouped = groupByDay();
+  const renderIndicadores = () => {
+    if (totalMedicoes === 0) return null;
 
-    let maiorEsq = null;
-    let maiorDir = null;
-    let menorEsq = null;
-    let menorDir = null;
+    const estatisticasCalculadas = estatisticas;
 
-    const dailyAvgs = [];
+    const percentualAcimaLimite = totalMedicoes > 0 ? (
+      (mediçõesAcimaLimite / totalMedicoes) *
+      100
+    ).toFixed(1) : "0.0";
 
-    Object.keys(grouped)
-      .sort() // garante que as datas fiquem em ordem crescente
-      .forEach((day) => {
-        const items = grouped[day];
-        const left = [];
-        const right = [];
+    return (
+      <View style={styles.statsOuter}>
+        <TouchableOpacity style={styles.statsHeader} onPress={toggleStats} activeOpacity={0.8}>
+          <Text style={styles.statsHeaderText}>📈 Indicadores Estatísticos</Text>
+          <Text style={styles.statsHeaderToggle}>{statsExpanded ? "Ocultar" : "Mostrar"}</Text>
+        </TouchableOpacity>
 
-        items.forEach((m) => {
-          const side = localSide(m.MedicaoLocal);
-          const peso = Number(m.MedicaoPeso || 0);
+        <Animated.View style={[styles.statsAnimated, { height: animatedHeight, opacity: animatedOpacity }]}>
+          <ScrollView horizontal contentContainerStyle={styles.statsGrid} showsHorizontalScrollIndicator={false}>
+            {renderStatCard(
+              "Total Medições",
+              `${totalMedicoes}`,
+              "#2196F3"
+            )}
 
-          if (side === "esquerda") left.push(peso);
-          else if (side === "direita") right.push(peso);
-          else if (side === "ambos") {
-            left.push(peso);
-            right.push(peso);
-          }
+            {renderStatCard(
+              "Dias c/ Medição",
+              `${diasComMedicao}`,
+              "#4CAF50"
+            )}
 
-          const data = parseISO(m.MedicaoData);
+            {renderStatCard(
+              "Média Total",
+              `${estatisticasCalculadas?.media ?? "—"} kg`,
+              "#00BCD4"
+            )}
 
-          // Maior/menor medição por lado
-          if (side === "esquerda" || side === "ambos") {
-            if (!maiorEsq || peso > maiorEsq.peso)
-              maiorEsq = { peso, data, lado: "esquerda" };
-            if (!menorEsq || peso < menorEsq.peso)
-              menorEsq = { peso, data, lado: "esquerda" };
-          }
-          if (side === "direita" || side === "ambos") {
-            if (!maiorDir || peso > maiorDir.peso)
-              maiorDir = { peso, data, lado: "direita" };
-            if (!menorDir || peso < menorDir.peso)
-              menorDir = { peso, data, lado: "direita" };
-          }
-        });
+            {renderStatCard(
+              "Mediana",
+              `${estatisticasCalculadas?.mediana ?? "—"} kg`,
+              "#2196F3"
+            )}
 
-        const mediaEsq = left.length
-          ? left.reduce((a, b) => a + b, 0) / left.length
-          : 0;
-        const mediaDir = right.length
-          ? right.reduce((a, b) => a + b, 0) / right.length
-          : 0;
+            {renderStatCard(
+              "Moda",
+              `${estatisticasCalculadas?.moda ?? "—"} kg`,
+              "#9C27B0"
+            )}
 
-        dailyAvgs.push({
-          dia: format(parseISO(day), "dd"),
-          total: Number((mediaEsq + mediaDir).toFixed(2)),
-        });
-      });
+            {renderStatCard(
+              "Desvio Padrão",
+              `${estatisticasCalculadas?.desvioPadrao ?? "—"} kg`,
+              "#FF9800"
+            )}
 
-    return { dailyAvgs, maiorEsq, maiorDir, menorEsq, menorDir };
-  };
+            {renderStatCard(
+              "Assimetria",
+              `${estatisticasCalculadas?.assimetria ?? "—"}`,
+              "#F44336"
+            )}
 
-  const { dailyAvgs, maiorEsq, maiorDir, menorEsq, menorDir } =
-    processarMedicoes();
+            {renderStatCard(
+              "Curtose",
+              `${estatisticasCalculadas?.curtose ?? "—"}`,
+              "#607D8B"
+            )}
 
-  const chartData = {
-    labels: dailyAvgs.map((d) => d.dia),
-    datasets: [
-      {
-        data: dailyAvgs.map((d) => d.total),
-        color: () => "#0288d1",
-      },
-    ],
+            {renderStatCard(
+              "Regressão Linear",
+              estatisticasCalculadas?.regressao
+                ? `y = ${estatisticasCalculadas.regressao.a}x + ${estatisticasCalculadas.regressao.b}`
+                : "Não aplicável",
+              "#455A64"
+            )}
+          </ScrollView>
+        </Animated.View>
+      </View>
+    );
   };
 
   const renderMedicaoCard = (titulo, medicao, tipo) => {
+    // A data vem como string ISO da API e precisa ser convertida
     if (!medicao) return null;
     const acimaLimite = medicao.peso > pesoMaximoPermitido;
     return (
@@ -216,13 +298,19 @@ export default function MonthlyReportScreen({ navigation, route }) {
         style={[
           styles.card,
           acimaLimite && styles.alertCard,
-          { borderLeftWidth: 6, borderLeftColor: tipo === "maior" ? "#0288d1" : "#43a047" },
+          {
+            borderLeftWidth: 6,
+            borderLeftColor: tipo === "maior" ? "#d32f2f" : "#43a047",
+          },
         ]}
       >
         <Text style={styles.bold}>
           {tipo === "maior" ? "📈" : "📉"} {titulo} ({medicao.lado})
         </Text>
-        <Text>Data: {format(medicao.data, "dd/MM/yyyy HH:mm", { locale: ptBR })}</Text>
+        <Text>
+          Data:{" "}
+          {format(parseISO(medicao.data), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+        </Text>
         <Text>Peso: {medicao.peso.toFixed(2)} kg</Text>
         {acimaLimite && (
           <Text style={styles.alertText}>
@@ -267,119 +355,102 @@ export default function MonthlyReportScreen({ navigation, route }) {
           />
         )}
 
+        <TouchableOpacity style={styles.fetchButton} onPress={buscarRelatorioMensal}>
+          <Text style={styles.fetchButtonText}>Buscar Relatório</Text>
+        </TouchableOpacity>
+
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#0000ff" />
-            <Text>Carregando...</Text>
+            <Text>Carregando dados e processando gráficos...</Text>
           </View>
         ) : erro ? (
           <Text style={styles.errorText}>{erro}</Text>
-        ) : medicoes.length === 0 ? (
+        ) : totalMedicoes === 0 ? (
           <Text style={styles.infoText}>Nenhuma medição encontrada.</Text>
         ) : (
           <>
+            {renderIndicadores()}
 
             <Text style={styles.graphTitle}>📊 Média Diária do Mês</Text>
-            <LineChart
-              data={chartData}
-              width={screenWidth - 20}
-              height={220}
-              yAxisSuffix=" kg"
-              chartConfig={{
-                backgroundColor: "#fff",
-                backgroundGradientFrom: "#e0f7fa",
-                backgroundGradientTo: "#b2ebf2",
-                decimalPlaces: 1,
-                color: (opacity = 1) => `rgba(0, 88, 136, ${opacity})`,
-                labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-              }}
-              style={styles.graph}
-              bezier
-              fromZero
-            />
 
-            {/* ======== NOVO GRÁFICO COMPARATIVO ESQ x DIR ======== */}
+            {/* 🎯 Gráfico da Média Diária Total */}
+            {dailyAvgs.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+                <LineChart
+                  data={{
+                    labels: dailyLabels, // Dados da API
+                    datasets: [
+                      { data: dailyAvgs, color: () => "#43a047" } // Dados da API
+                    ],
+                    legend: ["Média Diária do Mês"]
+                  }}
+                  width={Math.max(screenWidth, dailyAvgs.length * 40)}
+                  height={220}
+                  yAxisSuffix="kg"
+                  chartConfig={{
+                    backgroundColor: "#fff",
+                    backgroundGradientFrom: "#fff",
+                    backgroundGradientTo: "#fff",
+                    decimalPlaces: 1,
+                    color: (opacity = 1) => `rgba(67, 160, 71, ${opacity})`,
+                    labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                    style: { borderRadius: 16 },
+                    propsForDots: { r: "5", strokeWidth: "2", stroke: "#43a047" },
+                  }}
+                  bezier
+                  style={{ marginVertical: 8, borderRadius: 16 }}
+                />
+              </ScrollView>
+
+            )}
+
+            {dailyAvgs.length === 0 && (
+              <Text style={styles.infoText}>Gráfico da Média Diária indisponível.</Text>
+            )}
+
             <Text style={[styles.graphTitle, { marginTop: 25 }]}>
               ⚖️ Comparativo Esquerda x Direita
             </Text>
 
-            <LineChart
-              data={{
-                labels: dailyAvgs.map((d) => d.dia),
-                datasets: [
-                  {
-                    data: medicoes.length
-                      ? (() => {
-                        const grouped = groupByDay();
-                        return Object.keys(grouped)
-                          .sort()
-                          .map((day) => {
-                            const items = grouped[day];
-                            const left = items
-                              .filter(
-                                (m) =>
-                                  localSide(m.MedicaoLocal) === "esquerda" ||
-                                  localSide(m.MedicaoLocal) === "ambos"
-                              )
-                              .map((m) => Number(m.MedicaoPeso));
-                            return left.length
-                              ? left.reduce((a, b) => a + b, 0) / left.length
-                              : 0;
-                          });
-                      })()
-                      : [],
-                    color: () => "#1976d2",
-                    strokeWidth: 2,
-                  },
-                  {
-                    data: medicoes.length
-                      ? (() => {
-                        const grouped = groupByDay();
-                        return Object.keys(grouped)
-                          .sort()
-                          .map((day) => {
-                            const items = grouped[day];
-                            const right = items
-                              .filter(
-                                (m) =>
-                                  localSide(m.MedicaoLocal) === "direita" ||
-                                  localSide(m.MedicaoLocal) === "ambos"
-                              )
-                              .map((m) => Number(m.MedicaoPeso));
-                            return right.length
-                              ? right.reduce((a, b) => a + b, 0) / right.length
-                              : 0;
-                          });
-                      })()
-                      : [],
-                    color: () => "#43a047",
-                    strokeWidth: 2,
-                  },
-                ],
-                legend: ["Esquerda", "Direita"],
-              }}
-              width={screenWidth - 20}
-              height={180} // 🔹 menor altura para compactar visualmente
-              yAxisSuffix=" kg"
-              chartConfig={{
-                backgroundColor: "#fff",
-                backgroundGradientFrom: "#e0f7fa",
-                backgroundGradientTo: "#b2ebf2",
-                decimalPlaces: 1,
-                color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                propsForDots: { r: "4", strokeWidth: "2" },
-                propsForBackgroundLines: { strokeDasharray: "3" },
-              }}
-              style={[styles.graph, { marginBottom: 20 }]}
-            />
+            {/* 🎯 Gráfico Comparativo Esquerda x Direita */}
+            {dailyAvgsEsq.length > 0 && dailyAvgsDir.length > 0 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+                <LineChart
+                  data={{
+                    labels: dailyLabels, // Dados da API
+                    datasets: [
+                      { data: dailyAvgsEsq, color: () => "#F46334" }, // Dados da API
+                      { data: dailyAvgsDir, color: () => "#36985B" }, // Dados da API
+                    ],
+                    legend: ["Esquerda", "Direita"]
+                  }}
+                  width={Math.max(screenWidth, dailyAvgs.length * 40)}
+                  height={220}
+                  yAxisSuffix="kg"
+                  chartConfig={{
+                    backgroundColor: "#fff",
+                    backgroundGradientFrom: "#fff",
+                    backgroundGradientTo: "#fff",
+                    decimalPlaces: 1,
+                    color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                    labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                    style: { borderRadius: 16 },
+                    propsForDots: { r: "5", strokeWidth: "2", stroke: "#333" },
+                  }}
+                  bezier
+                  style={{ marginVertical: 8, borderRadius: 16 }}
+                />
+              </ScrollView>
+
+            ) : (
+              <Text style={styles.infoText}>Gráfico Comparativo indisponível ou dados insuficientes.</Text>
+            )}
 
             {renderMedicaoCard("Maior Medição", maiorEsq, "maior")}
             {renderMedicaoCard("Maior Medição", maiorDir, "maior")}
             {renderMedicaoCard("Menor Medição", menorEsq, "menor")}
             {renderMedicaoCard("Menor Medição", menorDir, "menor")}
-
-
           </>
         )}
       </ScrollView>
@@ -405,7 +476,7 @@ export default function MonthlyReportScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#e0f7fa" },
+  container: { flex: 1, backgroundColor: "#eee" },
   title: {
     fontSize: 24,
     fontWeight: "bold",
@@ -425,6 +496,15 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   dateButtonText: { fontSize: 16, color: "#333" },
+  fetchButton: {
+    backgroundColor: "#2e7d32",
+    borderRadius: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 25,
+    alignSelf: "center",
+    marginBottom: 20,
+  },
+  fetchButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
   loadingContainer: { alignItems: "center", marginTop: 30 },
   errorText: { color: "red", textAlign: "center", marginTop: 20 },
   infoText: { textAlign: "center", color: "#555", marginTop: 40 },
@@ -454,4 +534,72 @@ const styles = StyleSheet.create({
   graph: { alignSelf: "center", borderRadius: 10 },
   bottomContainer: { position: "absolute", bottom: 0, left: 0, right: 0 },
   backButton: { position: "absolute", top: 40, left: 20 },
+
+  statsOuter: {
+    marginHorizontal: 10,
+    marginTop: 10,
+    marginBottom: 20,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#d0d7d7",
+  },
+  statsHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: "#e8f5e9",
+  },
+  statsHeaderText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#2e7d32",
+  },
+  statsHeaderToggle: {
+    fontSize: 14,
+    color: "#2e7d32",
+  },
+  statsAnimated: {
+    paddingVertical: 8,
+    height: 120,
+  },
+  statsGrid: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+  },
+  statCard: {
+    backgroundColor: "#fff",
+    minWidth: 150,
+    maxWidth: 1000,
+    marginRight: 10,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    elevation: 2,
+    borderLeftWidth: 6,
+    borderLeftColor: "#4CAF50",
+    flexShrink: 0,
+  },
+  statCardTitle: {
+    fontSize: 13,
+    color: "#333",
+    fontWeight: "600",
+    marginBottom: 6,
+  },
+  statCardValue: {
+    fontSize: 16,
+    color: "#111",
+    fontWeight: "700",
+    flexShrink: 1,
+    flexWrap: "nowrap",
+  },
+  statCardFooter: {
+    fontSize: 12,
+    color: "#555",
+    marginTop: 3,
+  }
 });

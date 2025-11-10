@@ -1,8 +1,10 @@
+// login.js
+
 import React, { useState, useContext } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ToastAndroid } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 //import { LINKAPI, PORTAPI } from "@env";
-import { LINKAPI, PORTAPI } from "../utils/global.js";
+import { LINKAPI, PORTAPI } from "../utils/global";
 import { validarEmail, salvarTokens } from "../utils/validacoes";
 
 export default function LoginScreen({ navigation }) {
@@ -116,7 +118,7 @@ export default function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#e0f7fa",
+    backgroundColor: "#eee",
     justifyContent: "center",
     alignItems: "center",
   },

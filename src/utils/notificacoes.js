@@ -1,5 +1,4 @@
 import * as Notifications from "expo-notifications";
-import * as Permissions from "expo-permissions";
 
 // Configura o comportamento das notificações
 Notifications.setNotificationHandler({
@@ -12,7 +11,7 @@ Notifications.setNotificationHandler({
 
 // Função para pedir permissão
 export async function solicitarPermissaoNotificacao() {
-  const { status } = await Permissions.askAsync(Permissions.NOTIFICATIONS);
+  const { status } = await Notifications.requestPermissionsAsync();
   if (status !== "granted") {
     alert("Permissão para notificações negada!");
   }

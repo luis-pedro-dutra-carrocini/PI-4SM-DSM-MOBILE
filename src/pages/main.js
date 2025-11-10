@@ -1,13 +1,16 @@
+// main.js
+
 import React, { useEffect, useContext } from "react";
 import { View, Text, StyleSheet, Image, ActivityIndicator, ToastAndroid, BackHandler, Alert } from "react-native";
-import { validarTokens, delay } from "../utils/validacoes";
+import { delay } from "../utils/validacoes";
+import { validarTokens } from "../utils/validacoes";
 
 export default function MainScreen({ navigation }) {
 
   const mostrarErroFatal = () => {
     Alert.alert(
       "Erro", // Título
-      "Erro ao conectar no servidor. \nVerifique sua conexão ou tente novamente mais tarde.", // Mensagem
+      "Erro ao conectar no servidor.\nVerifique sua conexão ou tente novamente mais tarde.", // Mensagem
       [
         {
           text: "OK",
@@ -39,52 +42,6 @@ export default function MainScreen({ navigation }) {
         return ToastAndroid.show(resposta, ToastAndroid.SHORT);
       }
 
-      // Substituida pela função reutilizavel acima
-      /*
-      const tokens = await pegarTokens();
-      const { accessToken, refreshToken } = tokens;
-
-      if (!accessToken) {
-        navigation.replace("login");
-        return;
-      }
-
-      // 1. Valida accessToken
-      let response = await fetch(LINKAPI + PORTAPI + "/token/validarToken", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-
-      if (response.ok) {
-        navigation.replace("home");
-        return;
-      }
-
-      // 2. Se expirado, tenta refresh
-      if (refreshToken) {
-        response = await fetch(LINKAPI + PORTAPI + "/token/refresh", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token: "Bearer " + refreshToken }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          await salvarTokens(data.accessToken);
-          navigation.replace("home");
-          return;
-        }
-      }
-
-      // 3. Se falhou
-      await limparTokens();
-      ToastAndroid.show("Sessão expirada, faça login novamente", ToastAndroid.SHORT);
-      delay(2000);
-      navigation.replace("login");
-      */
     } catch (error) {
       if (error.name === "AbortError") {
         return ToastAndroid.show("Servidor demorou a responder", ToastAndroid.SHORT);
@@ -137,10 +94,10 @@ const styles = StyleSheet.create({
   image: {
     width: 180,
     height: 180,
-    marginBottom: 15,
+    marginBottom: 5,
   },
   title: {
-    fontSize: 20,
+    fontSize: 23,
     fontWeight: "bold",
     textAlign: "center",
     color: "#00C200",

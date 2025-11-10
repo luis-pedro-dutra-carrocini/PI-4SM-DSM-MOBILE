@@ -1,3 +1,5 @@
+// register.js
+
 import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Platform, ToastAndroid } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -274,7 +276,7 @@ export default function RegisterScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#e0f7fa", justifyContent: "center", alignItems: "center" },
+  container: { flex: 1, backgroundColor: "#eee", justifyContent: "center", alignItems: "center" },
   backButton: { position: "absolute", top: 40, left: 20 },
   box: {
     backgroundColor: "#fff",

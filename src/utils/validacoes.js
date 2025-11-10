@@ -101,229 +101,175 @@ export async function limparTokens() {
   await SecureStore.deleteItemAsync("refreshToken");
 }
 
-// Validar tokens
-export async function validarTokens(tentativas, navigation) {
+export async function validarTokens(tentativas = 0, navigation) {
   try {
+    console.log("🔁 Tentativas de validação:", tentativas);
 
-    // Timeout 3s
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3000);
-
-    console.log('Tentativas: ' + tentativas);
-    if (tentativas > 5) {
-      console.log('Tentativas excedidas');
-      navigation.reset({
-        index: 0,
-        routes: [{ name: "login" }],
-      });
-      return 'false';
-    }
-
-    const tokens = await pegarTokens();
-    const { accessToken, refreshToken } = tokens;
-
-    if (!accessToken || !refreshToken) {
-      console.log('Sem tokens');
+    // 🔒 Limite de tentativas
+    if (tentativas >= 5) {
+      console.log("🚫 Tentativas excedidas");
       await limparTokens();
       navigation.reset({
         index: 0,
         routes: [{ name: "login" }],
       });
-      return 'false';
+      return "false";
     }
 
-    // 1. Valida accessToken
+    // Timeout de 3s
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+
+    const { accessToken, refreshToken } = await pegarTokens();
+
+    // 🧩 Tokens ausentes
+    if (!accessToken || !refreshToken) {
+      console.log("⚠️ Tokens ausentes");
+      await limparTokens();
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "login" }],
+      });
+      return "false";
+    }
+
+    // 🧠 1️⃣ Tenta validar o accessToken
     let response = await fetch(LINKAPI + PORTAPI + "/token/validarToken", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${accessToken}`,
-        signal: controller.signal,
       },
+      signal: controller.signal,
     });
 
     clearTimeout(timeout);
 
     if (response.ok) {
-      console.log('Token válido');
-      return 'true';
+      console.log("✅ Token válido");
+      return "true";
     }
 
-    // 2. Se expirado, tenta refresh
-    if (refreshToken) {
-      response = await fetch(LINKAPI + PORTAPI + "/token/refresh", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: refreshToken }),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeout);
-
-      if (response.ok) {
-        const data = await response.json();
-        await salvarTokens(data.accessToken, refreshToken);
-        console.log('Token renovado');
-        return 'true';
-      } else {
-
-        let data;
-        try {
-          console.log('Validando resposta');
-          data = await response.json();
-        } catch {
-          console.log('Resposta inválida');
-          data = {};
-        }
-
-        if (data.error && data.error === 'Usuário não autenticado') {
-          console.log('Usuário não autenticado');
-          await limparTokens();
-          navigation.reset({
-            index: 0,
-            routes: [{ name: "login" }],
-          });
-          return 'false';
-        }
-        //console.log('Inciando nova tentiva');
-        return await validarTokens(tentativas + 1, navigation);
-      }
-    }
-
-    // 3. Se falhou
-    console.log('Token Inválido');
-    await limparTokens();
-    navigation.reset({
-      index: 0,
-      routes: [{ name: "login" }],
+    // 🧠 2️⃣ Tenta renovar com o refreshToken
+    response = await fetch(LINKAPI + PORTAPI + "/token/refresh", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: refreshToken }),
     });
-    return 'false';
 
-  } catch (error) {
-    if (error.name === "AbortError") {
-      console.log('Servidor demorou a responder');
-      return await validarTokens(tentativas + 1, navigation);
-    } else {
-      console.log('Erro ao conectar no servidor');
-      return await validarTokens(tentativas + 1, navigation);
+    if (response.ok) {
+      const data = await response.json();
+      await salvarTokens(data.accessToken, refreshToken);
+      console.log("🔄 Token renovado com sucesso");
+      return "true";
     }
-  }
-}
 
-export async function obterDadosUsuario(navigation) {
-  try {
+    // 🧠 3️⃣ Falha ao renovar
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      data = {};
+    }
 
-    // Timeout 3s
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3000);
-
-    let tokens = await pegarTokens();
-    let { accessToken, refreshToken } = tokens;
-
-    if (!accessToken || !refreshToken) {
-      console.log("Tokens ausentes");
+    if (data.error === "Usuário não autenticado") {
+      console.log("🚫 Usuário não autenticado");
       await limparTokens();
       navigation.reset({
         index: 0,
         routes: [{ name: "login" }],
       });
-      return 'false';
+      return "false";
     }
 
-    // 1. Tentando obter os dados
+    console.log("⚠️ Falha ao renovar token, nova tentativa...");
+    await new Promise(res => setTimeout(res, 1000));
+    return await validarTokens(tentativas + 1, navigation);
+
+  } catch (error) {
+    if (error.name === "AbortError") {
+      console.log("⏰ Timeout ao validar token");
+    } else {
+      console.log("💥 Erro ao conectar no servidor:", error.message);
+    }
+
+    await new Promise(res => setTimeout(res, 1000));
+    return await validarTokens(tentativas + 1, navigation);
+  }
+}
+
+
+export async function obterDadosUsuario(navigation, tentativas = 0) {
+  try {
+    console.log("📡 Tentando obter dados do usuário (tentativa", tentativas + 1, ")");
+
+    // Evita loop infinito
+    if (tentativas >= 2) {
+      console.log("🚫 Tentativas máximas de obtenção de dados atingidas");
+      return "false";
+    }
+
+    // Timeout 3s
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+
+    const { accessToken, refreshToken } = await pegarTokens();
+
+    if (!accessToken || !refreshToken) {
+      console.log("⚠️ Tokens ausentes ao obter dados");
+      await limparTokens();
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "login" }],
+      });
+      return "false";
+    }
+
+    // 🔐 1️⃣ Tenta obter os dados com o token atual
     let response = await fetch(LINKAPI + PORTAPI + "/usuarios/id", {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${accessToken}`,
-        signal: controller.signal,
       },
+      signal: controller.signal,
     });
 
     clearTimeout(timeout);
 
-    let data;
-
+    // 🔐 2️⃣ Se o accessToken expirou, tenta renovar
     if (!response.ok) {
+      console.log("⚠️ Token expirado ao obter dados, tentando renovar...");
 
-      // 2. Se expirado, tenta refresh na função
-      response = await validarTokens(0, navigation);
-
-      if (response === 'false') {
-        return 'false';
-      } else if (response === 'true') {
-        data = await obterDadosUsuario(navigation);
+      const validado = await validarTokens(0, navigation);
+      if (validado === "false") {
+        console.log("🚫 Token inválido mesmo após renovação");
+        return "false";
       }
 
-      /*
-      response = await fetch(LINKAPI + PORTAPI + "/token/refresh", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: "Bearer " + refreshToken }),
-      });
-
-      if (response.ok) {
-        data = await response.json();
-        await salvarTokens(data.accessToken, refreshToken);
-        console.log("Access Token: " + data.accessToken);
-        console.log("Refresh Token: " + refreshToken);
-        response = await fetch(LINKAPI + PORTAPI + "/usuarios/id", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${String(data.accessToken)}`,
-          },
-        });
-
-        if (!response.ok) {
-          console.log("Falha ao obter dados do usuário");
-          await limparTokens();
-          navigation.reset({
-            index: 0,
-            routes: [{ name: "login" }],
-          });
-          return;
-        }
-
-      } else {
-        console.log("Falha ao renovar token");
-        await limparTokens();
-        navigation.reset({
-          index: 0,
-          routes: [{ name: "login" }],
-        });
-        return;
-      }
-      */
-    } else {
-      data = await response.json();
+      // Faz nova tentativa APENAS UMA VEZ após renovação
+      return await obterDadosUsuario(navigation, tentativas + 1);
     }
 
-    tokens = await pegarTokens();
-
-    accessToken = tokens.accessToken;
-
+    // 🔐 3️⃣ Retorna dados do usuário
+    const data = await response.json();
+    console.log("✅ Dados do usuário obtidos com sucesso");
     return data;
-    /*
-    const pesoFor = data.usuario.UsuarioPeso.replace('.', ',');
-    const alturaFor = data.usuario.UsuarioAltura.replace('.', ',');
 
-    setAltura(alturaFor);
-    setPeso(pesoFor);
-    setDtNascimento(new Date(data.usuario.UsuarioDtNascimento));
-    setEmail(data.usuario.UsuarioEmail);
-    setNome(data.usuario.UsuarioNome);
-    setSexo(data.usuario.UsuarioSexo);
-    */
-
-  } catch {
+  } catch (error) {
     if (error.name === "AbortError") {
-      console.log('Servidor demorou a responder (ObD)');
-      return await validarTokens(0, navigation);
+      console.log("⏰ Timeout ao obter dados do usuário");
     } else {
-      console.log('Erro ao conectar no servidor (ObD)');
-      return await validarTokens(0, navigation);
+      console.log("💥 Erro ao conectar no servidor (ObD):", error.message);
     }
+
+    // Em caso de erro de rede, tenta novamente apenas uma vez
+    if (tentativas < 1) {
+      console.log("🔄 Tentando novamente obter dados...");
+      return await obterDadosUsuario(navigation, tentativas + 1);
+    }
+
+    return "false";
   }
 }
 

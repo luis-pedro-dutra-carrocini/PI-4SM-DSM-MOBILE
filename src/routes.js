@@ -15,6 +15,7 @@ import DailyReport from "./pages/dailyReport";
 import WeeklyReport from "./pages/weeklyReport";
 import MonthlyReport from "./pages/monthlyReport";
 import AnnualReport from "./pages/annualReport";
+import FuturePrediction from "./pages/futurePrediction";
 
 const Stack = createStackNavigator();
 
@@ -80,6 +81,11 @@ export default function Routes() {
                 <Stack.Screen
                     name="annualReport"
                     component={AnnualReport}
+                    options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                    name="futurePrediction"
+                    component={FuturePrediction}
                     options={{ headerShown: false }}
                 />
                 <Stack.Screen
