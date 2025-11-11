@@ -101,39 +101,35 @@ export async function limparTokens() {
   await SecureStore.deleteItemAsync("refreshToken");
 }
 
+// utils/validacoes.js - Função validarTokens corrigida
 export async function validarTokens(tentativas = 0, navigation) {
   try {
     console.log("🔁 Tentativas de validação:", tentativas);
 
-    // 🔒 Limite de tentativas
-    if (tentativas >= 5) {
-      console.log("🚫 Tentativas excedidas");
-      await limparTokens();
-      navigation.reset({
-        index: 0,
-        routes: [{ name: "login" }],
-      });
-      return "false";
+    // 🔒 Limite mais restritivo
+    if (tentativas >= 2) {
+      console.log("🚫 Tentativas excedidas - Servidor offline?");
+      return "offline";
     }
 
-    // Timeout de 3s
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3000);
+    const timeout = setTimeout(() => controller.abort(), 5000);
 
     const { accessToken, refreshToken } = await pegarTokens();
 
-    // 🧩 Tokens ausentes
     if (!accessToken || !refreshToken) {
       console.log("⚠️ Tokens ausentes");
       await limparTokens();
-      navigation.reset({
-        index: 0,
-        routes: [{ name: "login" }],
-      });
+      if (navigation) {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: "login" }],
+        });
+      }
       return "false";
     }
 
-    // 🧠 1️⃣ Tenta validar o accessToken
+    // 🧠 Tenta validar o accessToken
     let response = await fetch(LINKAPI + PORTAPI + "/token/validarToken", {
       method: "POST",
       headers: {
@@ -145,87 +141,102 @@ export async function validarTokens(tentativas = 0, navigation) {
 
     clearTimeout(timeout);
 
-    if (response.ok) {
-      console.log("✅ Token válido");
-      return "true";
-    }
-
-    // 🧠 2️⃣ Tenta renovar com o refreshToken
-    response = await fetch(LINKAPI + PORTAPI + "/token/refresh", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: refreshToken }),
-    });
-
-    if (response.ok) {
+    // ✅ CORREÇÃO: Verifica corretamente o status 200
+    if (response.status === 200) {
       const data = await response.json();
-      await salvarTokens(data.accessToken, refreshToken);
-      console.log("🔄 Token renovado com sucesso");
-      return "true";
+      if (data.ok === true) {
+        console.log("✅ Token válido");
+        return "true";
+      } else {
+        console.log("⚠️ Resposta inesperada na validação:", data);
+        return "offline";
+      }
     }
 
-    // 🧠 3️⃣ Falha ao renovar
-    let data;
-    try {
-      data = await response.json();
-    } catch {
-      data = {};
-    }
+    // ❌ Token inválido ou expirado (401)
+    if (response.status === 401) {
+      console.log("🔄 Token expirado, tentando renovar...");
 
-    if (data.error === "Usuário não autenticado") {
-      console.log("🚫 Usuário não autenticado");
-      await limparTokens();
-      navigation.reset({
-        index: 0,
-        routes: [{ name: "login" }],
+      // Tenta renovar com refreshToken
+      const refreshResponse = await fetch(LINKAPI + PORTAPI + "/token/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: refreshToken }),
       });
-      return "false";
+
+      if (refreshResponse.status === 200) {
+        const refreshData = await refreshResponse.json();
+        await salvarTokens(refreshData.accessToken, refreshToken);
+        console.log("🔄 Token renovado com sucesso");
+        return "true";
+      }
+
+      // ❌ Refresh token também inválido
+      if (refreshResponse.status === 401) {
+        console.log("🚫 Refresh token inválido");
+        await limparTokens();
+        if (navigation) {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: "login" }],
+          });
+        }
+        return "false";
+      }
+
+      // 🔄 Outro erro no refresh
+      console.log("⚠️ Erro ao renovar token:", refreshResponse.status);
+      return "offline";
     }
 
-    console.log("⚠️ Falha ao renovar token, nova tentativa...");
-    await new Promise(res => setTimeout(res, 1000));
-    return await validarTokens(tentativas + 1, navigation);
+    // 🔄 Outros erros HTTP - não limpa tokens
+    console.log(`⚠️ Erro ${response.status} ao validar token`);
+    return "offline";
 
   } catch (error) {
     if (error.name === "AbortError") {
       console.log("⏰ Timeout ao validar token");
     } else {
-      console.log("💥 Erro ao conectar no servidor:", error.message);
+      console.log("💥 Erro de conexão:", error.message);
     }
 
-    await new Promise(res => setTimeout(res, 1000));
-    return await validarTokens(tentativas + 1, navigation);
+    if (tentativas < 1) {
+      await new Promise(res => setTimeout(res, 2000));
+      return await validarTokens(tentativas + 1, navigation);
+    }
+
+    return "offline";
   }
 }
-
 
 export async function obterDadosUsuario(navigation, tentativas = 0) {
   try {
     console.log("📡 Tentando obter dados do usuário (tentativa", tentativas + 1, ")");
 
-    // Evita loop infinito
-    if (tentativas >= 2) {
-      console.log("🚫 Tentativas máximas de obtenção de dados atingidas");
-      return "false";
+    // 🔒 Limite de tentativas - CORRIGIDO
+    if (tentativas >= 3) { // Aumentei para 3 tentativas
+      console.log("🚫 Tentativas máximas - servidor pode estar offline");
+      return "offline";
     }
 
-    // Timeout 3s
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3000);
+    const timeout = setTimeout(() => controller.abort(), 5000);
 
     const { accessToken, refreshToken } = await pegarTokens();
 
     if (!accessToken || !refreshToken) {
       console.log("⚠️ Tokens ausentes ao obter dados");
       await limparTokens();
-      navigation.reset({
-        index: 0,
-        routes: [{ name: "login" }],
-      });
+      if (navigation) {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: "login" }],
+        });
+      }
       return "false";
     }
 
-    // 🔐 1️⃣ Tenta obter os dados com o token atual
+    // 🔐 Tenta obter os dados com o token atual
     let response = await fetch(LINKAPI + PORTAPI + "/usuarios/id", {
       method: "GET",
       headers: {
@@ -237,39 +248,54 @@ export async function obterDadosUsuario(navigation, tentativas = 0) {
 
     clearTimeout(timeout);
 
-    // 🔐 2️⃣ Se o accessToken expirou, tenta renovar
-    if (!response.ok) {
-      console.log("⚠️ Token expirado ao obter dados, tentando renovar...");
-
-      const validado = await validarTokens(0, navigation);
-      if (validado === "false") {
-        console.log("🚫 Token inválido mesmo após renovação");
-        return "false";
-      }
-
-      // Faz nova tentativa APENAS UMA VEZ após renovação
-      return await obterDadosUsuario(navigation, tentativas + 1);
+    // ✅ Sucesso - retorna os dados do usuário
+    if (response.status === 200) {
+      const data = await response.json();
+      console.log("✅ Dados do usuário obtidos com sucesso");
+      return data;
     }
 
-    // 🔐 3️⃣ Retorna dados do usuário
-    const data = await response.json();
-    console.log("✅ Dados do usuário obtidos com sucesso");
-    return data;
+    // ❌ Token expirado (401) - tenta renovar
+    if (response.status === 401) {
+      console.log("⚠️ Token expirado ao obter dados, validando...");
+
+      const validado = await validarTokens(0, navigation);
+
+      if (validado === "true") {
+        // Token foi renovado, tenta novamente APENAS UMA VEZ
+        console.log("🔄 Token renovado, tentando obter dados novamente...");
+        return await obterDadosUsuario(navigation, tentativas + 1);
+      } else {
+        return validado; // "false" ou "offline"
+      }
+    }
+
+    // 🔄 Erro 404 ou outros - NÃO tenta novamente automaticamente
+    console.log(`⚠️ Erro ${response.status} ao obter dados`);
+
+    // Se for 404, o endpoint pode não existir
+    if (response.status === 404) {
+      return "endpoint_nao_encontrado";
+    }
+
+    return "erro_servidor";
 
   } catch (error) {
+    // 🔄 Erros de rede - tenta novamente
     if (error.name === "AbortError") {
       console.log("⏰ Timeout ao obter dados do usuário");
     } else {
-      console.log("💥 Erro ao conectar no servidor (ObD):", error.message);
+      console.log("💥 Erro de conexão (ObD):", error.message);
     }
 
-    // Em caso de erro de rede, tenta novamente apenas uma vez
-    if (tentativas < 1) {
+    // Tenta novamente apenas se for erro de rede
+    if (tentativas < 2) {
       console.log("🔄 Tentando novamente obter dados...");
+      await new Promise(res => setTimeout(res, 2000));
       return await obterDadosUsuario(navigation, tentativas + 1);
     }
 
-    return "false";
+    return "offline";
   }
 }
 

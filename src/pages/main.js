@@ -1,53 +1,77 @@
 // main.js
-
-import React, { useEffect, useContext } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Image, ActivityIndicator, ToastAndroid, BackHandler, Alert } from "react-native";
 import { delay } from "../utils/validacoes";
-import { validarTokens } from "../utils/validacoes";
+import { validarTokens, obterDadosUsuario } from "../utils/validacoes";
 
 export default function MainScreen({ navigation }) {
+  const [carregando, setCarregando] = useState(true);
 
-  const mostrarErroFatal = () => {
+  const mostrarErroFatal = (mensagem = "Erro ao conectar no servidor.\nVerifique sua conexão ou tente novamente mais tarde.") => {
     Alert.alert(
-      "Erro", // Título
-      "Erro ao conectar no servidor.\nVerifique sua conexão ou tente novamente mais tarde.", // Mensagem
+      "Erro",
+      mensagem,
       [
         {
           text: "OK",
-          // A função onPress é o 'callback'
-          onPress: () => {
-            // O app só fechará APÓS o usuário tocar em "OK"
-            BackHandler.exitApp();
-          }
+          onPress: () => BackHandler.exitApp()
         }
       ],
-      { cancelable: false } // Garante que o usuário tem que tocar no botão (Android)
+      { cancelable: false }
     );
   };
 
+  // main.js - Atualize a função validarEntrada
+  // main.js - Adicione mais logs para debug
   const validarEntrada = async () => {
     try {
+      setCarregando(true);
+      await delay(1000);
 
-      await delay(1000); // Simula loading
+      console.log("🔐 Iniciando validação de tokens...");
+      const respostaValidacao = await validarTokens(0, navigation);
 
-      const resposta = await validarTokens(0, navigation);
+      console.log("📋 Resposta da validação:", respostaValidacao);
 
-      if (resposta === 'true') {
-        navigation.replace("home");
-        return;
-      } else if (resposta === 'false') {
-        //navigation.replace("login");
-        return;
-      }else{
-        return ToastAndroid.show(resposta, ToastAndroid.SHORT);
+      if (respostaValidacao === 'true') {
+        console.log("✅ Tokens válidos, obtendo dados do usuário...");
+
+        const dadosUsuario = await obterDadosUsuario(navigation);
+        console.log("📦 Dados recebidos:", dadosUsuario);
+
+        if (typeof dadosUsuario === 'object') {
+          if (dadosUsuario.ok === true && dadosUsuario.usuario) {
+            console.log("✅ Dados obtidos com sucesso, navegando para home...");
+            navigation.replace("home", { usuario: dadosUsuario.usuario });
+          }
+          else if (dadosUsuario.UsuarioPeso || dadosUsuario.UsuarioNome) {
+            console.log("✅ Dados obtidos com sucesso (formato direto), navegando para home...");
+            navigation.replace("home", { usuario: dadosUsuario });
+          }
+          else {
+            console.log("❌ Estrutura de dados inválida:", dadosUsuario);
+            mostrarErroFatal("Erro inesperado ao carregar dados.");
+          }
+        } else if (dadosUsuario === 'endpoint_nao_encontrado') {
+          console.log("⚠️ Endpoint não encontrado, mas tokens válidos - navegando para home");
+          navigation.replace("home");
+        } else {
+          console.log("❌ Não foi possível obter dados do usuário:", dadosUsuario);
+          mostrarErroFatal("Erro ao carregar dados do usuário.");
+        }
+      } else if (respostaValidacao === 'false') {
+        console.log("❌ Tokens inválidos, navegando para login...");
+        navigation.replace("login");
+      } else {
+        console.log("🌐 Problema de conexão:", respostaValidacao);
+        mostrarErroFatal();
       }
 
     } catch (error) {
-      if (error.name === "AbortError") {
-        return ToastAndroid.show("Servidor demorou a responder", ToastAndroid.SHORT);
-      } else {
-        mostrarErroFatal();
-      }
+      console.error("💥 Erro fatal na validação:", error);
+      mostrarErroFatal();
+    } finally {
+      setCarregando(false);
     }
   };
 
@@ -59,17 +83,12 @@ export default function MainScreen({ navigation }) {
     <View style={styles.container}>
       <View style={styles.box}>
         <Image
-          source={require("../assets/mochila-PI-sem-fundo.png")} // coloque sua imagem aqui
+          source={require("../assets/mochila-PI-sem-fundo.png")}
           style={styles.image}
           resizeMode="contain"
         />
         <Text style={styles.title}>MOCHILA{"\n"}INTELIGENTE</Text>
       </View>
-
-      {/* Enquanto valida → loading */}
-      {/*}
-      <ActivityIndicator size="large" color="#00C200" style={{ marginTop: 20 }} />
-      {*/}
     </View>
   );
 }

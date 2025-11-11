@@ -447,7 +447,7 @@ export default function BackpackScreen({ navigation }) {
 
               <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 10 }}>
                 <TouchableOpacity
-                  style={[styles.smallButton, { backgroundColor: "#ffc107" }]}
+                  style={[styles.smallButton, { backgroundColor: "#0d55f0ff" }]}
                   onPress={() => openEditModal(backpack)}
                 >
                   <Text style={styles.smallButtonText}>Editar Nome</Text>
@@ -574,7 +574,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   inUseCard: {
-    backgroundColor: "#d4edda", 
+    backgroundColor: "#fbfffbff", 
     borderWidth: 2,
     borderColor: "#28a745", 
   },
@@ -691,7 +691,6 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
-  inUseCard: { backgroundColor: "#d4edda", borderWidth: 2, borderColor: "#28a745" },
   lastUsedCard: { backgroundColor: "#e2e3e5", borderWidth: 1, borderColor: "#adb5bd" },
   cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
   backpackName: { fontSize: 18, fontWeight: "bold", color: "#3A3A3A", flexShrink: 1 },
