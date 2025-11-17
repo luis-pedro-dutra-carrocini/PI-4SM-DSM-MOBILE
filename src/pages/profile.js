@@ -82,14 +82,15 @@ export default function ProfileScreen({ navigation }) {
 
       const pesoFor = response.usuario.UsuarioPeso?.replace(".", ",") ?? "";
       const alturaFor = response.usuario.UsuarioAltura?.replace(".", ",") ?? "";
+      const pesoMaxPorFor = response.usuario.UsuarioPesoMaximoPorcentagem?.replace(".", ",") ?? "";
 
       setAltura(alturaFor);
       setPeso(pesoFor);
+      setPesoMaxPor(pesoMaxPorFor);
       setDtNascimento(new Date(response.usuario.UsuarioDtNascimento));
       setEmail(response.usuario.UsuarioEmail ?? "");
       setNome(response.usuario.UsuarioNome ?? "");
       setSexo(response.usuario.UsuarioSexo ?? "");
-      setPesoMaxPor(response.usuario.UsuarioPesoMaximoPorcentagem ?? "");
     } catch (error) {
       if (error.name === "AbortError") {
         ToastAndroid.show("Servidor demorou a responder", ToastAndroid.SHORT);
@@ -110,6 +111,7 @@ export default function ProfileScreen({ navigation }) {
   const handleConfirmar = async () => {
     const pesoParaAPI = peso.replace(",", ".");
     const alturaParaAPI = altura.replace(",", ".");
+    const pesoMaxPorAPI = pesoMaxPor.replace(",", ".");
 
     let tokens = await pegarTokens();
     let { accessToken } = tokens;
@@ -138,9 +140,7 @@ export default function ProfileScreen({ navigation }) {
           UsuarioAltura: alturaParaAPI,
           UsuarioSexo: sexo,
           UsuarioFoto: null,
-          UsuarioPesoMaximoPorcentagem: pesoMaxPor
-            ? pesoMaxPor.replace(",", ".")
-            : null,
+          UsuarioPesoMaximoPorcentagem:pesoMaxPorAPI,
         }),
         signal: controller.signal,
       });
